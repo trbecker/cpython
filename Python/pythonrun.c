@@ -45,6 +45,8 @@
                    _Py_GetRefTotal())
 #endif
 
+typedef void (Py_ExitFnProto)(int);
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -73,6 +75,8 @@ extern void _PyGILState_Init(PyInterpreterState *, PyThreadState *);
 extern void _PyGILState_Fini(void);
 #endif /* WITH_THREAD */
 
+static void Py_DefaultExit(int);
+
 int Py_DebugFlag; /* Needed by parser.c */
 int Py_VerboseFlag; /* Needed by import.c */
 int Py_InteractiveFlag; /* Needed by Py_FdIsInteractive() below */
@@ -95,6 +99,8 @@ int Py_HashRandomizationFlag = 0; /* for -R and PYTHONHASHSEED */
 /* Hack to force loading of object files */
 int (*_PyOS_mystrnicmp_hack)(const char *, const char *, Py_ssize_t) = \
     PyOS_mystrnicmp; /* Python/pystrcmp.o */
+
+Py_ExitFnProto *Py_ExitFn = Py_DefaultExit;
 
 /* PyModule_GetWarningsModule is no longer necessary as of 2.6
 since _warnings is builtin.  This API should not be used. */
@@ -1777,12 +1783,23 @@ call_ll_exitfuncs(void)
     fflush(stderr);
 }
 
-void
-Py_Exit(int sts)
+static void
+Py_DefaultExit(int sts)
 {
     Py_Finalize();
 
-    exit(sts);
+    exit(0);
+}
+
+void
+Py_Exit(int sts)
+{
+    Py_ExitFn(sts);
+}
+
+void Py_SetExitFn(Py_ExitFnProto *fn)
+{
+    Py_ExitFn = fn;
 }
 
 static void
